@@ -2,62 +2,72 @@
 #include <pthread.h>
 #include <sys/select.h>
 
-// Shared Memory for two MTP sockets
-Shared_Memo SM[MAX_MTP_SOCKETS];
 
-// Mutex and Condition Variables
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t data_available = PTHREAD_COND_INITIALIZER;
+
+sem_t semaphore1;
+sem_t semaphore2;
 
 // Thread R Function
 void *thread_R(void *arg)
 {
-    while (1)
-    {
-        // Implement R thread logic
-        // Wait for data to be available in the receive buffer
-        pthread_mutex_lock(&mutex);
-
-        fd_set readfds, copy_readfds;
-        FD_ZERO(&readfds);
-        select(sockfd + 1, &readfds, NULL, NULL, NULL);
-
-
-        // Process data from the receive buffer
-        // Update rwnd, send ACK, etc.
-
-        pthread_mutex_unlock(&mutex);
-    }
+  
 }
 
 // Thread S Function
 void *thread_S(void *arg)
 {
-    while (1)
-    {
-        // Implement S thread logic
-        // Check for pending messages in the sender-side message buffer
-        // Send messages through UDP socket using sendto()
-
-        // Sleep for a short period
-        usleep(100000); // Sleep for 100 milliseconds
-    }
+   
 }
+
+
+
+
+
 
 int main()
 {
     // Initialize MTP sockets, bind, etc.
+    key_t key;
+    int shmid;
+   SOCK_INFO *shared_info;
 
-    // Create threads R and S
-    pthread_t tid_R, tid_S;
-    pthread_create(&tid_R, NULL, thread_R, NULL);
-    pthread_create(&tid_S, NULL, thread_S, NULL);
+    // Generate key using ftok
+    if ((key = ftok(SHM_KEY_PATH, SHM_KEY_ID)) == -1) {
+        perror("ftok");
+        exit(EXIT_FAILURE);
+    }
 
-    // Initialize shared memory, bind sockets, etc.
+    // Create the shared memory segment
+    if ((shmid = shmget(key, sizeof(SOCK_INFO), IPC_CREAT | 0666)) == -1) {
+        perror("shmget");
+        exit(EXIT_FAILURE);
+    }
 
-    // Wait for threads to finish (which they won't)
-    pthread_join(tid_R, NULL);
-    pthread_join(tid_S, NULL);
+    // Attach the shared memory segment to our data structure
+    if ((shared_info = (SOCK_INFO *)shmat(shmid, NULL, 0)) == (SOCK_INFO *)-1) {
+        perror("shmat");
+        exit(EXIT_FAILURE);
+    }
+    // Initialize the shared structure
+    shared_info->sock_id = 0;
+    strcpy(shared_info->IP, "0.0.0.0");
+    shared_info->port = 0;
+    shared_info->error_code = 0;
+
+    // Detach the shared memory segment
+    if (shmdt(shared_info) == -1) {
+        perror("shmdt");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Shared memory segment created and initialized successfully.\n");
+
+
+
+
 
     return 0;
+
+
+
 }
