@@ -132,7 +132,7 @@ int main()
         perror("ftok");
         exit(EXIT_FAILURE);
     }
-    printf("l1\n");
+
     // Create the shared memory segment
     if ((shmid = shmget(key, sizeof(SOCK_INFO), IPC_CREAT | 0666)) == -1)
     {
@@ -174,7 +174,7 @@ int main()
         perror("shmat");
         exit(EXIT_FAILURE);
     }
-    printf("l2\n");
+
     // Initialize the shared MTPSocket array
     for (int i = 0; i < MAX_MTP_SOCKETS; ++i)
     {
@@ -221,6 +221,12 @@ int main()
             {
                 // If successful, update SOCK_INFO with the socket id
                 shared_info->sock_id = sockfd;
+                int optval = 1;
+                if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+                {
+                    perror("ERROR setting socket option");
+                    exit(1);
+                }
                 printf("SOcket is created\n");
             }
         }

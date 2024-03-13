@@ -166,7 +166,7 @@ int m_socket(int domain, int type, int flag)
     semaphore_signal(semaphore1); // Perform signal operation
 
     printf("Waiting for socket creation to complete...\n");
-    printf("sem 2 %d\n", semaphore2);
+
     semaphore_wait(semaphore2); // Perform wait operation
 
     printf("Socket creation completed.\n");
@@ -225,7 +225,7 @@ int m_bind(int sockfd, char source_ip[], int source_port, char dest_ip[], int de
 
     if (sockfd == -1 || sockfd >= MAX_MTP_SOCKETS || sockM[sockfd].free != 0 || sockM[sockfd].des_port != 0)
     {
-        printf("Socket out of bound or already bind\n");
+        printf("Socket out of bound or not valid arguments or already bind\n");
         return -1;
     }
 
@@ -270,11 +270,15 @@ int m_bind(int sockfd, char source_ip[], int source_port, char dest_ip[], int de
     semaphore_wait(semaphore2); // Perform wait operation
 
     int r = shared_info->sock_id;
-
+    errno = shared_info->errorno;
+    shared_info->sock_id = 0;
+    strcpy(shared_info->IP, "");
+    shared_info->port = 0;
+    shared_info->errorno = 0;
     if (r == -1)
     {
         perror("Binding Fail\n");
-        errno = shared_info->errorno;
+       
         return -1;
     }
     else
@@ -284,13 +288,13 @@ int m_bind(int sockfd, char source_ip[], int source_port, char dest_ip[], int de
 
         printf("Socket created successfully \n");
     }
-
+    
     return 1;
 }
 
 int m_close(int sockfd)
 {
-    key_t key1;
+     key_t key1;
     int shmid1;
     MTPSocket *sockM;
 
@@ -315,15 +319,27 @@ int m_close(int sockfd)
         exit(EXIT_FAILURE);
     }
 
-    if (sockfd == -1 || sockfd >= MAX_MTP_SOCKETS || sockM[sockfd].free != 0)
+    if (sockfd == -1 || sockfd >= MAX_MTP_SOCKETS || sockM[sockfd].free != 0 )
     {
         printf("Invalid socket\n");
         return -1;
     }
+        int i=sockfd;
+        sockM[i].free = true;
+        sockM[i].pid = 0;
+        sockM[i].UDPsocID = -1;
+        memset(sockM[i].des_IP, 0, sizeof(sockM[i].des_IP));
+        sockM[i].des_port = 0;
+        memset(sockM[i].source_IP, 0, sizeof(sockM[i].source_IP));
+        sockM[i].source_port = 0;
+        memset(sockM[i].sbuf, 0, sizeof(sockM[i].sbuf));
+        memset(sockM[i].rbuf, 0, sizeof(sockM[i].rbuf));
 
     close(sockM[sockfd].UDPsocID);
     printf("success closed \n");
     return 1;
+
+
 }
 
 int main(int argc, char *argv[])
@@ -334,11 +350,14 @@ int main(int argc, char *argv[])
     printf("Created %d id\n", sock_mtpfd);
     // sock_mtpfd = m_socket(AF_INET, SOCK_MTP, 0);
 
-    if (m_bind(sock_mtpfd, "10.0.2.15", atoi(argv[1]), "loopback", 20001) > 0)
+    
+
+    if (m_bind(sock_mtpfd, "loopback", atoi(argv[1]), "loopback", 20001) > 0)
     {
         printf("success\n");
     }
     m_close(sock_mtpfd);
+
 
     return 0;
 }
