@@ -14,32 +14,26 @@
 // Thread R Function
 void *thread_R(void *arg)
 {
-    while (1)
-    {
-        // Implement R thread logic
-        // Wait for data to be available in the receive buffer
+    // while (1)
+    // {
 
-        fd_set readfds, copy_readfds;
-        FD_ZERO(&readfds);
-        // select(sockfd + 1, &readfds, NULL, NULL, NULL);
-
-        // Process data from the receive buffer
-        // Update rwnd, send ACK, etc.
-    }
+    // }
+    pthread_exit(NULL);
 }
 
 // Thread S Function
 void *thread_S(void *arg)
 {
-    while (1)
-    {
-        // Implement S thread logic
-        // Check for pending messages in the sender-side message buffer
-        // Send messages through UDP socket using sendto()
+    // while (1)
+    // {
+    //     // Implement S thread logic
+    //     // Check for pending messages in the sender-side message buffer
+    //     // Send messages through UDP socket using sendto()
 
-        // Sleep for a short period
-        usleep(100000); // Sleep for 100 milliseconds
-    }
+    //     // Sleep for a short period
+    //     usleep(100000); // Sleep for 100 milliseconds
+    // }
+    pthread_exit(NULL);
 }
 // Function to initialize semaphore
 void semaphore_init(int semaphore_id, int initial_value)
@@ -187,12 +181,14 @@ int main()
         sockM[i].source_port = 0;
         memset(sockM[i].sbuf, 0, sizeof(sockM[i].sbuf));
         memset(sockM[i].rbuf, 0, sizeof(sockM[i].rbuf));
+        sockM[i].nospace = false;
+        sockM[i].ack_num = 0;
         // Initialize other fields as needed...
     }
 
-    // pthread_t tid_R, tid_S;
-    // pthread_create(&tid_R, NULL, thread_R, NULL);
-    // pthread_create(&tid_S, NULL, thread_S, NULL);
+    pthread_t tid_R, tid_S;
+    pthread_create(&tid_R, NULL, thread_R, NULL);
+    pthread_create(&tid_S, NULL, thread_S, NULL);
     // Initialize semaphore with initial value 0
 
     while (1)
@@ -230,7 +226,21 @@ int main()
                 printf("SOcket is created\n");
             }
         }
-        else
+        else if (shared_info->port == 0 && shared_info->errorno == 0)
+        {
+
+            if (close(shared_info->sock_id) >= 0)
+            {
+                printf("Close sucess\n");
+            }
+            else
+            {
+                shared_info->sock_id = -1;
+                shared_info->errorno = errno;
+                perror("close");
+            }
+        }
+        else if (shared_info->port != 0 && shared_info->errorno == 0)
         {
 
             // SOCK_INFO indicates a m_bind call, proceed to make a bind() call
@@ -286,8 +296,8 @@ int main()
     // Initialize shared memory, bind sockets, etc.
 
     // Wait for threads to finish (which they won't)
-    // pthread_join(tid_R, NULL);
-    // pthread_join(tid_S, NULL);
+    pthread_join(tid_R, NULL);
+    pthread_join(tid_S, NULL);
 
     return 0;
 }

@@ -55,13 +55,13 @@ typedef struct
     pid_t pid;
     int UDPsocID;
     char des_IP[20];
-
+    bool nospace;
     int des_port;
-    char sbuf[MAX_MTP_SEND_BUFFER_SIZE];
-    char rbuf[MAX_MTP_RECEIVE_BUFFER_SIZE];
+    char sbuf[10][MAX_MESSAGE_SIZE];
+    char rbuf[5][MAX_MESSAGE_SIZE];
     int source_IP[20];
     int source_port;
-    
+    bool ack_num;
     // Window swnd;
     // Window rwnd;
     // bool isClosed;
@@ -72,7 +72,7 @@ typedef struct
 int m_socket(int domain, int type, int protocol);
 int m_bind(int sockfd,char source_ip[],int source_port ,char dest_ip[] ,int dest_port);
 ssize_t m_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
-ssize_t m_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+ssize_t m_recvfrom(int sockfd, void *buf, size_t len, char* dest_ip, int dest_port);
 int m_close(int sockfd);
 void semaphore_signal(int semaphore_id);
 void semaphore_wait(int semaphore_id);
