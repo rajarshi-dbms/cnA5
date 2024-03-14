@@ -1,17 +1,33 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<msocket.h>
-#include<unistd.h>
-#include<pthread.h>
+// include all the headers
+#include "msocket.h"
 
-int main()
+int main(int argc, char *argv[])
 {
-    // Create MTP socket
-    int sockfd = m_socket(AF_INET, SOCK_MTP, 0);
-    if (sockfd < 0)
+
+    int sock_mtpfd = m_socket(AF_INET, SOCK_MTP, 0);
+
+    printf("Created %d id\n", sock_mtpfd);
+
+    if (m_bind(sock_mtpfd, "loopback", atoi(argv[1]), "loopback", 20001) > 0)
     {
-        perror("m_socket");
-        exit(1);
+        printf("success\n");
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    m_close(sock_mtpfd);
+
     return 0;
 }

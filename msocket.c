@@ -1,5 +1,5 @@
 #include "msocket.h"
-int msocket_errno = 0;
+
 SOCK_INFO *shared_func()
 {
     key_t key;
@@ -26,23 +26,13 @@ SOCK_INFO *shared_func()
         perror("shmat");
         exit(EXIT_FAILURE);
     }
-    // // Access and modify the shared data
-    // printf("sock_id: %d\n", shared_info->sock_id);
-    // printf("IP: %s\n", shared_info->IP);
-    // printf("port: %d\n", shared_info->port);
-    // printf("errorno: %d\n", shared_info->errorno);
+
     return shared_info;
 }
 // Function to initialize semaphore
 void semaphore_init(int semaphore_id, int initial_value)
 {
-    // union semun
-    // {
-    //     int val;
-    //     struct semid_ds *buf;
-    //     unsigned short *array;
-    // } argument;
-    // argument.val = initial_value;
+
     if (semctl(semaphore_id, 0, SETVAL, 0) == -1)
     {
         perror("Semaphore initialization failed");
@@ -130,7 +120,7 @@ int m_socket(int domain, int type, int flag)
     }
     if (i == MAX_MTP_SOCKETS)
     {
-        msocket_errno = ENOBUFS; // Update the global error variable
+        errno = ENOBUFS; // Update the global error variable
         return -1;
     }
 
@@ -285,6 +275,8 @@ int m_bind(int sockfd, char source_ip[], int source_port, char dest_ip[], int de
     {
         sockM[sockfd].des_port = dest_port;
         strcpy(sockM[sockfd].des_IP, dest_ip);
+        sockM[sockfd].source_port = source_port;
+        strcpy(sockM[sockfd].source_IP, source_ip);
 
         printf("Socket created successfully \n");
     }
@@ -394,23 +386,118 @@ int m_close(int sockfd)
     memset(sockM[i].sbuf, 0, sizeof(sockM[i].sbuf));
     memset(sockM[i].rbuf, 0, sizeof(sockM[i].rbuf));
     sockM[i].nospace = false;
-    sockM[i].ack_num = 0;
+    sockM[i].ack_num = -1;
+    sockM[i].sendNospace = false;
+    sockM[i].l_send = -1;
+    sockM[i].f_send = -1;
+    // Initialize other fields as needed...
 
     return 1;
 }
-ssize_t m_recvfrom(int sockfd, void *buf, size_t len, char* dest_ip, int dest_port)
-int main(int argc, char *argv[])
+
+int m_sendto(int sockfd, char buf[], int len)
 {
+    key_t key1;
+    int shmid1;
+    MTPSocket *sockM;
 
-    int sock_mtpfd = m_socket(AF_INET, SOCK_MTP, 0);
-
-    printf("Created %d id\n", sock_mtpfd);
-
-    if (m_bind(sock_mtpfd, "loopback", atoi(argv[1]), "loopback", 20001) > 0)
+    // Generate the same key using ftok
+    if ((key1 = ftok(MTP_KEY_PATH, MTP_KEY_ID)) == -1)
     {
-        printf("success\n");
+        perror("ftok");
+        exit(EXIT_FAILURE);
     }
-    m_close(sock_mtpfd);
 
-    return 0;
+    // Get the identifier for the shared memory segment
+    if ((shmid1 = shmget(key1, sizeof(MTPSocket) * MAX_MTP_SOCKETS, 0666)) == -1)
+    {
+        perror("shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    // Attach the shared memory segment to our data structure
+    if ((sockM = (MTPSocket *)shmat(shmid1, NULL, 0)) == (MTPSocket *)-1)
+    {
+        perror("shmat");
+        exit(EXIT_FAILURE);
+    }
+    //////checking if socket is bind or not
+    if ((sockM[sockfd].free != 0) || sockM[sockfd].source_port == 0|| sockM[sockfd].des_port==0)
+    {
+        errno = ENOTCONN;
+        perror("Unable to send\n");
+        return -1;
+    }
+   
+
+    int k=-1;
+    //////checking dest source is bind with this socket or not for it find source id for that socket
+
+    for (int i = 0; i < MAX_MTP_SOCKETS; i++)
+    {
+        if (sockM[i].des_port == sockM[sockfd].source_port && strcmp(sockM[i].des_IP, sockM[sockfd].source_IP) == 0)
+        {
+            k = i;
+        }
+    }
+    // if(k==-1)
+    // {
+    //     errno = ENOTCONN;
+    //     perror("Unable to send\n");
+    //     return -1;
+    // }
+    
+    if(sockM[sockfd].sendNospace)
+    {
+        errno= ENOBUFS;
+        perror("Unable to send\n");
+        return -1;
+        
+    }
+
+    key_t sem_key3, sem_key4;
+    if ((sem_key3 = ftok(SHM_KEY_PATH, SEM_KEY3_ID)) == -1)
+    {
+        perror("ftok for semaphore1");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((sem_key4 = ftok(SHM_KEY_PATH, SEM_KEY4_ID)) == -1)
+    {
+        perror("ftok for semaphore2");
+        exit(EXIT_FAILURE);
+    }
+
+    int semaphore3;
+    if ((semaphore3 = semget(sem_key3, 1, 0666)) == -1)
+    {
+        perror("semget for semaphore1");
+        exit(EXIT_FAILURE);
+    }
+
+    int semaphore4;
+    if ((semaphore4 = semget(sem_key4, 1, 0666)) == -1)
+    {
+        perror("semget for semaphore1");
+        exit(EXIT_FAILURE);
+    }
+
+    // copy the user's buff to shared memo buf
+    
+    if (sockM[sockfd].l_send == -1 && sockM[sockfd].f_send == -1)
+    {
+        sockM[sockfd].l_send = 0;
+        sockM[sockfd].f_send = 0;
+    }
+    strcpy(sockM[sockfd].sbuf[sockM[sockfd].l_send], buf);
+    sockM[sockfd].l_send += 1;
+    /////signal to semaphore in s thread
+    semaphore_signal(semaphore3);
+    
+
+    
+    semaphore_wait(semaphore4);
+    
+    /////wait for signal from s thread
+    return EXIT_SUCCESS;
 }
