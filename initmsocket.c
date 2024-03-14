@@ -8,8 +8,8 @@
 #define SEM_OP1_INDEX 0
 #define SEM_OP2_INDEX 1
 
-int semaphore1,semaphore2;
-int semaphore3,semaphore4;
+int semaphore1, semaphore2;
+int semaphore3, semaphore4;
 int shmid, shmid1;
 SOCK_INFO *shared_info;
 MTPSocket *sockM;
@@ -53,7 +53,7 @@ void end()
     semctl(semaphore3, IPC_RMID, 0);
     semctl(semaphore4, IPC_RMID, 0);
     printf("Deleting shared memory SOCK_INFO and shared_info.......\n");
-     // Detach the shared memory segment
+    // Detach the shared memory segment
     if (shmdt(shared_info) == -1)
     {
         perror("shmdt");
@@ -76,10 +76,6 @@ void end()
         exit(1);
     }
     exit(0);
-
-
-
-
 }
 // Thread R Function
 void *thread_R(void *arg)
@@ -93,10 +89,8 @@ void *thread_R(void *arg)
     //     {
     //         FD_SET()
     //     }
-        
-    // }
-    
 
+    // }
 
     pthread_exit(NULL);
 }
@@ -104,14 +98,45 @@ void *thread_R(void *arg)
 // Thread S Function
 void *thread_S(void *arg)
 {
+
     printf("Waiting for signal from sendto\n");
     semaphore_wait(semaphore3);
-    printf("Have received \n");    
+    printf("Have received \n");
+    key_t key1;
+    int shmid1;
+    MTPSocket *sockM;
+
+    // Generate the same key using ftok
+    if ((key1 = ftok(MTP_KEY_PATH, MTP_KEY_ID)) == -1)
+    {
+        perror("ftok");
+        exit(EXIT_FAILURE);
+    }
+
+    // Get the identifier for the shared memory segment
+    if ((shmid1 = shmget(key1, sizeof(MTPSocket) * MAX_MTP_SOCKETS, 0666)) == -1)
+    {
+        perror("shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    // Attach the shared memory segment to our data structure
+    if ((sockM = (MTPSocket *)shmat(shmid1, NULL, 0)) == (MTPSocket *)-1)
+    {
+        perror("shmat");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < MAX_MTP_SOCKETS; i++)
+    {
+        if (sockM[i].current_send != 0)
+        {
+        }
+    }
+
     semaphore_signal(semaphore4);
     printf("have send signal\n");
 
-
-    
     pthread_exit(NULL);
 }
 // Function to initialize semaphore
@@ -157,7 +182,7 @@ int main()
 
     //////////////////////////////////////semaphore creation/////////////////////////
     key_t sem_key1, sem_key2;
-     key_t sem_key3, sem_key4;
+    key_t sem_key3, sem_key4;
     if ((sem_key1 = ftok(SHM_KEY_PATH, SEM_KEY1_ID)) == -1)
     {
         perror("ftok for semaphore1");
@@ -196,7 +221,7 @@ int main()
         perror("semget for semaphore2");
         exit(EXIT_FAILURE);
     }
-        if ((semaphore3 = semget(sem_key3, 1, IPC_CREAT | 0666)) == -1)
+    if ((semaphore3 = semget(sem_key3, 1, IPC_CREAT | 0666)) == -1)
     {
         perror("semget for semaphore3");
         exit(EXIT_FAILURE);
@@ -286,21 +311,17 @@ int main()
         sockM[i].sendNospace = false;
         sockM[i].l_send = -1;
         sockM[i].f_send = -1;
+        sockM[i].current_send = 0;
         // Initialize other fields as needed...
     }
 
-   
     pthread_create(&tid_R, NULL, thread_R, NULL);
     pthread_create(&tid_S, NULL, thread_S, NULL);
-    
-   
 
-
-    signal(SIGINT,end);
+    signal(SIGINT, end);
 
     while (1)
     {
-      
 
         printf("waiting for signal from msocket.c\n");
         // Wait for a signal on semaphore 1
@@ -370,9 +391,6 @@ int main()
         // Signal semaphore 2 to indicate completion
         semaphore_signal(semaphore2); // Perform signal operation
     }
-
-
-  
 
     return 0;
 }

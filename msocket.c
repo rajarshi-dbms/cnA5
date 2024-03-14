@@ -390,6 +390,7 @@ int m_close(int sockfd)
     sockM[i].sendNospace = false;
     sockM[i].l_send = -1;
     sockM[i].f_send = -1;
+    sockM[i].current_send=0;
     // Initialize other fields as needed...
 
     return 1;
@@ -491,6 +492,7 @@ int m_sendto(int sockfd, char buf[], int len)
     }
     strcpy(sockM[sockfd].sbuf[sockM[sockfd].l_send], buf);
     sockM[sockfd].l_send += 1;
+    sockM[sockfd].current_send++;
     /////signal to semaphore in s thread
     semaphore_signal(semaphore3);
     

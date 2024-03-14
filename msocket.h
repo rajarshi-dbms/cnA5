@@ -63,6 +63,7 @@ typedef struct
     char sbuf[10][MAX_MESSAGE_SIZE];
     char rbuf[5][MAX_MESSAGE_SIZE];
     char source_IP[20];
+    int current_send;
     int source_port;
     int l_send, f_send;
     int ack_num;
