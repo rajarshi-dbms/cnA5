@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 
     printf("Created %d id\n", sock_mtpfd);
 
-    if (m_bind(sock_mtpfd, "loopback", atoi(argv[1]), "loopback", 20001) > 0)
+    if (m_bind(sock_mtpfd, "loopback", atoi(argv[1]), "loopback", atoi(argv[2])) > 0)
     {
         printf("success\n");
 
