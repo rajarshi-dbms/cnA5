@@ -43,6 +43,7 @@
 //     // Define your MTP header structure here
 // } MTPHeader;
 
+// data structure for temporary information about a socket
 typedef struct
 {
     int sock_id;
@@ -51,25 +52,40 @@ typedef struct
     int errorno;
 } SOCK_INFO;
 
+// data structure for shared memory of mtp
 typedef struct
 {
+    /* Indicates whether the socket is free or not */
     bool free;
+    /* Process ID of the process that has this socket */
     pid_t pid;
+    /* UDP socket ID for sending MTP messages */
     int UDPsocID;
+    /* Destination IP address for sending messages */
     char des_IP[20];
+    /* Indicates whether there is no space in the send buffer */
     bool nospace;
+    /* Indicates whether there is no space in the send buffer for sending acks*/
     bool sendNospace;
+    /* Destination port for sending messages */
     int des_port;
+    /* Send buffer for holding messages that are waiting to be sent */
     char sbuf[10][MAX_MESSAGE_SIZE];
+    /* Receive buffer for holding messages that have been received */
     char rbuf[5][MAX_MESSAGE_SIZE];
+    /* Source IP address */
     char source_IP[20];
+    /* current size of the send buffer */
     int current_send;
+    /* Source port */
     int source_port;
-    int l_send, f_send;
+    /* Index of the slot where next msg will be written */
+    int l_send;
+    /* Index of the slot from where next msg will be read */
+    int f_send;
+    /* Ack number for the messages that have been received */
     int ack_num;
-    // Window swnd;
-    // Window rwnd;
-    // bool isClosed;
+    
 
 } MTPSocket;
 
